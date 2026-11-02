@@ -108,7 +108,7 @@ class ModerationBot(discord.Client):
 
         async with self.busy:
             try:
-                # HTTP runs in a thread so Discord's connection stays responsive.
+                # The SDK call runs in a thread so Discord's connection stays responsive.
                 probability = await asyncio.to_thread(
                     score_message, message.content, self.api_key
                 )
@@ -149,8 +149,9 @@ class ModerationBot(discord.Client):
 def main():
     load_dotenv(Path(__file__).with_name(".env"))
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    # The HTTP library's info logs are unnecessary for this tutorial.
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    # Keep SDK request details out of the console.
+    logging.getLogger("httpx2").setLevel(logging.WARNING)
+    logging.getLogger("typesafe_sdk").setLevel(logging.WARNING)
     try:
         token = required_setting("DISCORD_BOT_TOKEN")
         api_key = required_setting("LIQUID_API_KEY")

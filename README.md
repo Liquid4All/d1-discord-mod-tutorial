@@ -107,24 +107,31 @@ channels identify the server. If you used this tutorial's earlier
 
 ## 4. Understand the decision
 
-[classifier.py](classifier.py) defines the question and sends this request:
+[classifier.py](classifier.py) uses `TypeSafeClient` and `Noul`, following
+[Liquid's Python SDK example](https://docs.liquid.ai/lfm/models/d1#setup):
 
 ```python
-{
-    "model": "d1-ultra",
-    "state": message,
-    "questions": {
-        "solicitation": {"type": "noul", "instructions": INSTRUCTIONS}
-    },
-}
+from typesafe_sdk import Noul, TypeSafeClient
+
+with TypeSafeClient(
+    api_key=api_key,
+    base_url="https://api.liquid.ai/decisions",
+    compression=False,
+) as client:
+    result = client.system_one(
+        model="d1-ultra",
+        state=message,
+        questions={"solicitation": Noul(instructions=INSTRUCTIONS)},
+    )
+
+probability = result.answers["solicitation"].noul
 ```
 
 `state` is the message text. `INSTRUCTIONS` explains what counts as solicitation.
-`noul` is the yes/no question type. The response contains a probability:
-
-```python
-probability = result["answers"]["solicitation"]["noul"]
-```
+`Noul` asks a yes/no question; `.noul` reads the probability of yes.
+The pinned SDK appends `/v1/systemone`, so the base URL includes `/decisions` to
+reach Liquid's documented endpoint. `compression=False` sends ordinary JSON.
+The bot also sets a timeout and disables retries to make one attempt per message.
 
 [bot.py](bot.py) sends a private report when that probability is at least `0.80`.
 This threshold is a starting point, not an accuracy guarantee. Adjust
