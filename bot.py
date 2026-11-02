@@ -1,14 +1,24 @@
-"""Flag possible solicitation from selected Discord text channels for human review."""
+"""Archive solicitation reports and delete high-scoring text messages."""
 
 import asyncio
+import copy
+import json
 import logging
 import os
+from io import BytesIO
 from pathlib import Path
 
 import discord
 from dotenv import load_dotenv
 
-from classifier import REVIEW_THRESHOLD, LiquidAPIError, score_message
+from classifier import (
+    DELETE_THRESHOLD,
+    INSTRUCTIONS,
+    MODEL,
+    REVIEW_THRESHOLD,
+    LiquidAPIError,
+    score_message,
+)
 
 log = logging.getLogger(__name__)
 
@@ -29,8 +39,18 @@ def parse_channel_ids(value: str) -> set[int]:
         ) from None
 
 
+def has_uninspected_media(message: discord.Message) -> bool:
+    return bool(
+        message.attachments or message.stickers or message.poll or message.components
+    )
+
+
 class ModerationBot(discord.Client):
     def __init__(self, channel_ids: set[int], review_channel_id: int, api_key: str):
+        if not 0 <= REVIEW_THRESHOLD <= DELETE_THRESHOLD <= 1:
+            raise ValueError(
+                "Thresholds must satisfy 0 <= REVIEW_THRESHOLD <= DELETE_THRESHOLD <= 1."
+            )
         if not channel_ids or any(channel_id <= 0 for channel_id in channel_ids):
             raise ValueError("DISCORD_CHANNEL_IDS must contain positive channel IDs.")
         if review_channel_id <= 0 or review_channel_id in channel_ids:
@@ -70,15 +90,23 @@ class ModerationBot(discord.Client):
             await self.close()
             return
         review_permissions = review.permissions_for(review.guild.me)
+        source_permissions = [
+            source.permissions_for(source.guild.me) for source in sources
+        ]
         if not all(
-            source.permissions_for(source.guild.me).view_channel for source in sources
+            permissions.view_channel
+            and permissions.read_message_history
+            and permissions.manage_messages
+            for permissions in source_permissions
         ) or not (
             review_permissions.view_channel
             and review_permissions.send_messages
             and review_permissions.embed_links
+            and review_permissions.attach_files
         ):
             log.error(
-                "Grant View Channel on every selected channel, plus Send Messages and Embed Links on review."
+                "Monitored channels need View Channel, Read Message History, and Manage Messages. "
+                "The review channel needs View Channel, Send Messages, Embed Links, and Attach Files."
             )
             await self.close()
             return
@@ -107,6 +135,8 @@ class ModerationBot(discord.Client):
             return
 
         async with self.busy:
+            # Preserve the version sent to the model while Discord events continue arriving.
+            message = copy.copy(message)
             try:
                 # The SDK call runs in a thread so Discord's connection stays responsive.
                 probability = await asyncio.to_thread(
@@ -116,34 +146,111 @@ class ModerationBot(discord.Client):
                     log.info("Message %s: no flag (%.3f)", message.id, probability)
                     return
 
-                # Bound the excerpt for Discord's embed limit; prevent mention notifications.
-                excerpt = discord.utils.escape_markdown(message.content[:1000])
-                embed = discord.Embed(
-                    title="Possible solicitation — please review",
-                    description=excerpt,
-                    color=discord.Color.orange(),
-                )
-                embed.add_field(
-                    name="Model probability of yes", value=f"{probability:.3f}"
-                )
-                embed.add_field(
-                    name="Original message", value=f"[Open message]({message.jump_url})"
-                )
-                embed.set_footer(
-                    text="Text snapshot at posting time. No message was deleted."
-                )
-                await self.review_channel.send(
-                    embed=embed, allowed_mentions=discord.AllowedMentions.none()
-                )
-                log.info("Message %s: sent for review (%.3f)", message.id, probability)
+                await self.archive_and_moderate(message, probability)
             except LiquidAPIError as error:
                 log.warning("Message %s: %s No report sent.", message.id, error)
             except discord.HTTPException as error:
                 log.warning(
-                    "Could not send review for %s (Discord HTTP %s).",
+                    "Could not archive %s (Discord HTTP %s). No deletion attempted.",
                     message.id,
                     error.status,
                 )
+
+    async def archive_and_moderate(self, message: discord.Message, probability: float):
+        should_delete = probability >= DELETE_THRESHOLD and not has_uninspected_media(
+            message
+        )
+        status = (
+            "Archived; deletion pending."
+            if should_delete
+            else "Review only; original left in place."
+        )
+        if has_uninspected_media(message):
+            status = "Review only; attachments, stickers, polls, or components were not inspected."
+
+        embed = discord.Embed(
+            title="Solicitation report",
+            description=discord.utils.escape_markdown(message.content[:1000]),
+            color=discord.Color.orange(),
+            timestamp=message.created_at,
+        )
+        embed.add_field(name="Model probability of yes", value=f"{probability:.4f}")
+        embed.add_field(
+            name="Author",
+            value=f"{discord.utils.escape_markdown(str(message.author))} (ID: {message.author.id})",
+            inline=False,
+        )
+        embed.add_field(
+            name="Source",
+            value=f"<#{message.channel.id}> · Message ID: {message.id}",
+            inline=False,
+        )
+        embed.add_field(
+            name="Original message", value=f"[Open while available]({message.jump_url})"
+        )
+        embed.set_footer(text=status)
+
+        # Keep the full text and decision context, even when the embed excerpt is shortened.
+        record = {
+            "message_id": message.id,
+            "server_id": message.guild.id,
+            "channel_id": message.channel.id,
+            "author": str(message.author),
+            "author_id": message.author.id,
+            "created_at": message.created_at.isoformat(),
+            "edited_at": message.edited_at.isoformat() if message.edited_at else None,
+            "content": message.content,
+            "original_url": message.jump_url,
+            "model": MODEL,
+            "question": INSTRUCTIONS,
+            "probability": probability,
+            "review_threshold": REVIEW_THRESHOLD,
+            "delete_threshold": DELETE_THRESHOLD,
+            "planned_action": "delete" if should_delete else "review",
+            "uninspected_media": has_uninspected_media(message),
+        }
+        data = json.dumps(record, ensure_ascii=False, indent=2).encode("utf-8")
+        file = discord.File(BytesIO(data), filename=f"message-{message.id}.json")
+        try:
+            report = await self.review_channel.send(
+                embed=embed, file=file, allowed_mentions=discord.AllowedMentions.none()
+            )
+        finally:
+            file.close()
+        log.info("Message %s: archived (%.4f). %s", message.id, probability, status)
+        if not should_delete:
+            return
+
+        # Only delete after the archive upload succeeds, and recheck the scored version.
+        try:
+            current = await message.channel.fetch_message(message.id)
+            if (
+                current.content != message.content
+                or current.edited_at != message.edited_at
+                or has_uninspected_media(current)
+            ):
+                status = "Not deleted: message changed after classification. Review manually."
+            else:
+                await current.delete()
+                status = "Deleted. Full text and decision context are saved in the attached JSON."
+        except discord.NotFound:
+            status = "Original message already unavailable; no deletion confirmed by this bot."
+        except discord.HTTPException as error:
+            status = f"Deletion not confirmed (Discord HTTP {error.status}). Check the original."
+
+        log.info("Message %s: %s", message.id, status)
+        embed.set_footer(text=status)
+        try:
+            await report.edit(
+                embed=embed, allowed_mentions=discord.AllowedMentions.none()
+            )
+        except discord.HTTPException as error:
+            log.warning(
+                "Could not update report %s (Discord HTTP %s). Outcome: %s",
+                report.id,
+                error.status,
+                status,
+            )
 
 
 def main():

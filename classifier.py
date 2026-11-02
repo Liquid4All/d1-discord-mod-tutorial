@@ -12,6 +12,7 @@ from typesafe_sdk import (
 BASE_URL = "https://api.liquid.ai/decisions"
 MODEL = "d1-ultra"
 REVIEW_THRESHOLD = 0.80
+DELETE_THRESHOLD = 0.99
 
 # This tutorial assumes a community channel where unsolicited promotion is disallowed.
 INSTRUCTIONS = """Is this message unsolicited solicitation in a community chat?
