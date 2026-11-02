@@ -20,9 +20,10 @@ API key; you can run it without Discord or a GPU.
 
 ## Why this decision?
 
-The original bot checked six server rules, plus profiles, images, and recent
-cross-posts. This tutorial takes one small part of its spam/advertising rule:
-solicitation. That can be illustrated with a single message and a single question;
+The original bot checked courtesy/pings, personal attacks, spam/advertising,
+channel relevance, prohibited content, and cross-posting, with profile and image
+checks too. This tutorial takes one small part of its spam/advertising rule:
+solicitation. It can be illustrated with a single message and a single question;
 channel relevance and cross-posting would need extra context.
 
 Our example policy assumes unsolicited commercial pitches, recruiting, and
