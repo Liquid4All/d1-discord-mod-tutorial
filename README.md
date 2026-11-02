@@ -2,7 +2,7 @@
 
 Build a bot that asks one question: **is this message unsolicited solicitation?**
 
-It reads new messages in one text channel and sends likely sales, recruitment,
+It reads new messages in selected text channels of one server and sends likely sales, recruitment,
 or signup pitches to a private moderator channel for review. It never deletes
 messages or bans anyone.
 
@@ -12,31 +12,54 @@ Message → d1-ultra → probability ≥ 0.80? → send a review report
 
 This is a small piece of the original bot's spam/advertising rule. Project demos,
 technical questions, and scam warnings should be allowed; a link alone isn't a
-violation. We assume unsolicited promotion is not allowed in the selected channel.
+violation. We assume unsolicited promotion is not allowed in the selected channels.
 
 **Just want to try d1-ultra?** Open the [notebook](notebooks/d1_ultra_solicitation.ipynb).
 It walks through the API independently of Discord.
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Liquid4All/d1-discord-mod-tutorial/blob/main/notebooks/d1_ultra_solicitation.ipynb)
 
-## 1. Install
+## 1. Create a virtual environment
 
 You need Python 3.11+ (3.12 recommended), a Liquid API key with available credit,
 and a Discord test server where you have **Manage Server** permission.
 
+Get the code and enter its folder:
+
 ```sh
 git clone https://github.com/Liquid4All/d1-discord-mod-tutorial.git
 cd d1-discord-mod-tutorial
+```
+
+Create a local `.venv` once, then activate it. This keeps the project's Python
+packages separate from your other projects.
+
+**macOS / Linux:**
+
+```sh
 python3 -m venv .venv
 source .venv/bin/activate
+```
+
+**Windows PowerShell:**
+
+```powershell
+py -3 -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+Install the dependencies into the active environment:
+
+```sh
 python -m pip install -r requirements.txt
 ```
 
-On Windows, use `py -3 -m venv .venv` and `.venv\Scripts\Activate.ps1`
-for the environment commands.
+When you open a new terminal, return to this folder and run the activation command
+again. You only need to create the environment once. Run `deactivate` when finished.
 
-Copy `.env.example` to a new file named `.env`. Keep your keys in `.env`, which
-Git ignores. Leave the example file empty.
+Copy `.env.example` to a new file named `.env` for your keys and settings.
+`.venv` holds installed packages; `.env` holds configuration. Both are ignored by
+Git. Leave the example file empty.
 
 ## 2. Get your API key and bot token
 
@@ -56,10 +79,11 @@ organization, then go to **Dashboard → API Keys** and create a key.
 The bot needs neither Administrator nor Manage Messages permission. It will
 appear offline until you run it.
 
-## 3. Choose two channels
+## 3. Choose the channels to monitor
 
-Create `#bot-test` and a **private** `#mod-review` text channel in the same server.
-Give the bot **View Channel** in both, plus **Send Messages** and **Embed Links**
+Choose one or more text channels to monitor, such as `#general` and `#show-your-work`.
+Create a **private** `#mod-review` text channel in the same server. Give the bot
+**View Channel** in every selected channel, plus **Send Messages** and **Embed Links**
 in `#mod-review`. Keep the review channel visible only to moderators and the bot.
 
 In Discord, enable **User Settings → Advanced → Developer Mode**. Right-click
@@ -68,11 +92,18 @@ each channel and choose **Copy Channel ID**. Fill in your local `.env`:
 ```dotenv
 LIQUID_API_KEY=your_liquid_key_here
 DISCORD_BOT_TOKEN=your_discord_bot_token_here
-DISCORD_CHANNEL_ID=your_bot_test_channel_id
+DISCORD_CHANNEL_IDS=111111111111111111,222222222222222222
 DISCORD_REVIEW_CHANNEL_ID=your_private_mod_review_channel_id
 ```
 
-Replace the placeholders with your keys and the two numeric channel IDs.
+Replace the example numbers with your monitored channels' IDs, separated by commas.
+Use one numeric ID for the private review channel and keep it out of that list.
+All channels must be in the same server; the bot checks this at startup.
+
+Coming from the original bot? Reuse `DISCORD_LOG_CHANNEL_ID` as
+`DISCORD_REVIEW_CHANNEL_ID`. `DISCORD_GUILD_ID` is no longer needed because the
+channels identify the server. If you used this tutorial's earlier
+`DISCORD_CHANNEL_ID` setting, rename it to **`DISCORD_CHANNEL_IDS`** and add more IDs.
 
 ## 4. Understand the decision
 
@@ -107,8 +138,9 @@ With your virtual environment active:
 python bot.py
 ```
 
-Wait for `Ready: watching #bot-test; reports go to #mod-review`. Then post these
-invented examples in `#bot-test` from your own account, one at a time:
+Wait for `Ready: watching ...; reports go to #mod-review`, listing your selected
+channels. Then post these invented examples in a monitored test channel from
+your own account, one at a time:
 
 | Message | Desired result |
 |---|---|
@@ -128,22 +160,34 @@ changing settings or code.
 ## Try the API notebook
 
 Run [the notebook](notebooks/d1_ultra_solicitation.ipynb) in Colab, VS Code, or Jupyter.
+Colab provides its own runtime. To run locally, activate the `.venv` from step 1,
+then install Jupyter and register a kernel inside that environment:
+
+```sh
+python -m pip install jupyterlab ipykernel
+python -m ipykernel install --sys-prefix --name d1-tutorial --display-name "Python (d1 tutorial)"
+python -m jupyter lab notebooks/d1_ultra_solicitation.ipynb
+```
+
+Select **Python (d1 tutorial)** as the notebook's kernel. In VS Code, you can
+instead choose this project's `.venv` using **Select Kernel → Python Environments**.
+
 It needs only a Liquid API key, entered through a hidden prompt. It does not load
 `.env` automatically. A full run makes seven paid requests; the final threshold
 experiment reuses the results without more calls. No GPU is needed.
 
 ## Scope and troubleshooting
 
-This example checks only new text in the selected channel. It skips bots,
+This example checks only new text in the selected channels. It skips bots,
 webhooks, DMs, threads, edits, and old messages. It does not inspect images,
 attachments, profiles, or linked pages. Each check sends the message text and
 question to Liquid in one paid API request.
 
 The bot handles one request at a time and logs a warning if another message
-arrives while it is busy. Failed requests are logged without retrying. Use a
-quiet test channel for this tutorial.
+arrives while it is busy. Failed requests are logged without retrying. Use
+quiet test channels for this tutorial.
 
-- **Online but silent:** check Message Content Intent, the channel ID, and send
+- **Online but silent:** check Message Content Intent, the channel IDs, and send
   a new text message from a human account.
 - **Can't access a channel or send reports:** check channel permissions,
   especially in the private review channel.
