@@ -1,4 +1,4 @@
-# A Discord moderation bot with `d1-ultra`
+# Discord moderation bot with `d1-ultra`
 
 Build a bot that asks one question: **is this message unsolicited solicitation?**
 
