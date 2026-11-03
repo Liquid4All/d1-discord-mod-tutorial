@@ -4,7 +4,7 @@
 
 # 👾 Discord moderation bot with `d1-ultra`
 
-Build a bot that asks one question: **is this message unsolicited solicitation?**
+Build a Discord bot that asks one question: **is this message unsolicited solicitation?**
 
 It reads new messages in selected text channels of one server and detects sales,
 recruitment, or signup pitches. It saves a report in a private moderator channel,
@@ -17,10 +17,6 @@ Message → d1-ultra → below 0.80: no action
                   → 0.99 or above: archive first, then delete eligible text messages
 ```
 
-This is a small piece of the original bot's spam/advertising rule. Project demos,
-technical questions, and scam warnings should be allowed; a link alone isn't a
-violation. We assume unsolicited promotion is not allowed in the selected channels.
-
 **Just want to try d1-ultra?** Open the [notebook](notebooks/d1_ultra_solicitation.ipynb).
 It walks through the API independently of Discord.
 
@@ -28,8 +24,8 @@ It walks through the API independently of Discord.
 
 ## 1. Create a virtual environment
 
-You need Python 3.11+ (3.12 recommended), a Liquid API key with available credit,
-and a Discord test server where you have **Manage Server** permission.
+You need Python 3.11+, a [Liquid API](https://console.liquid.ai/) key,
+and a Discord server where you have "Manage Server" permission.
 
 Get the code and enter its folder:
 
