@@ -1,4 +1,6 @@
 discord.py==2.7.1
 typesafe-sdk==0.7.5
 python-dotenv==1.2.4
+jupyterlab==4.6.5
+ipykernel==7.4.0
 
