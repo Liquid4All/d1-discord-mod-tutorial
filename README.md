@@ -8,13 +8,12 @@ Build a Discord bot that asks one question: **is this message unsolicited solici
 
 It reads new messages in selected text channels of one server and detects sales,
 recruitment, or signup pitches. It saves a report in a private moderator channel,
-then deletes text messages with a solicitation score of at least `0.99`. Lower
-scores from `0.80` are reported for human review. 
+then deletes eligible text messages with a solicitation score of at least `0.80`.
+Below `0.80`, it takes no action.
 
 ```text
 Message → d1-ultra → below 0.80: no action
-                  → 0.80–below 0.99: private review report
-                  → 0.99 or above: archive first, then delete eligible text messages
+                  → 0.80 or above: archive first, then delete eligible text messages
 ```
 
 **Just want to try d1-ultra?** Open the [notebook](notebooks/d1_ultra_solicitation.ipynb).
@@ -86,9 +85,10 @@ Choose one or more text channels to monitor, such as `#general`.
 Create a **private** `#mod-review` text channel in the same server. Give the bot
 **View Channel**, **Read Message History**, and **Manage Messages** in each monitored
 channel. In `#mod-review`, give it **View Channel**, **Send Messages**, **Embed Links**,
-and **Attach Files**. Keep the review channel visible only to moderators and the bot.
+and **Attach Files**. This channel holds archives for post-mortem analysis; keep it
+visible only to moderators and the bot.
 
-In Discord, enable **User Settings → Advanced → Developer Mode**. Right-click
+In Discord, enable **User Settings → Developer → Developer Mode**. Right-click
 each channel and choose **Copy Channel ID**. Fill in your local `.env`:
 
 ```dotenv
@@ -130,16 +130,15 @@ The pinned SDK appends `/v1/systemone`, so the base URL includes `/decisions` to
 reach Liquid's documented endpoint. `compression=False` sends ordinary JSON.
 The bot also sets a timeout and disables retries to make one attempt per message.
 
-[bot.py](bot.py) uses two thresholds from `classifier.py`:
+[bot.py](bot.py) uses one threshold from `classifier.py`:
 
 ```python
-REVIEW_THRESHOLD = 0.80  # Save a private report.
-DELETE_THRESHOLD = 0.99  # Also delete, after saving the report.
+DELETE_THRESHOLD = 0.80  # Archive in the private channel, then delete.
 ```
 
-These are starting points, not accuracy guarantees. A `0.99` score does not
-guarantee a correct decision. Keep the review threshold at or below the deletion
-threshold. Try synthetic messages in test channels before using real conversations.
+This threshold is a starting point. Feel free to adjust it based on your own data
+and moderation preferences. Test your chosen value on representative messages
+before enabling automatic deletion.
 
 ## 5. Run it
 
@@ -155,26 +154,26 @@ your own account, one at a time:
 
 | Message | Desired result |
 |---|---|
-| Buy my AI consulting package. DM me for pricing. | Report; delete if score ≥ 0.99 |
-| Join my business opportunity. DM to earn money. | Report; delete if score ≥ 0.99 |
-| I built an open-source chatbot. Feedback is welcome. | No flag |
-| How do I run this model locally? | No flag |
-| Watch out for “DM me to earn money” messages — it's a scam. | No flag |
+| Buy my AI consulting package. DM me for pricing. | Archive and delete if score ≥ 0.80 |
+| Join my business opportunity. DM to earn money. | Archive and delete if score ≥ 0.80 |
+| I built an open-source chatbot. Feedback is welcome. | No action |
+| How do I run this model locally? | No action |
+| Watch out for “DM me to earn money” messages — it's a scam. | No action |
 
 Wait for each result in the terminal before posting the next message. These are
 desired results, not measured predictions; the model can make mistakes. A report
 includes an excerpt, author and message IDs, source channel, timestamp, and score.
-An attached JSON file preserves the **full text**, policy question, and thresholds
+An attached JSON file preserves the **full text**, policy question, and threshold
 for post-mortem analysis. Its `planned_action` records the intention; the report's
 footer shows the actual outcome.
 
-For scores at or above `0.99`, the bot uploads that archive **before deleting**.
+For scores at or above `0.80`, the bot uploads that archive **before deleting**.
 If the upload fails, it leaves the original untouched. It then fetches the latest
 message and cancels deletion if the text or edit timestamp changed, or uninspected
-media appeared. Attachments, stickers, polls, and interactive components make a
-message review-only. The original-message link stops working after deletion;
-use the archived JSON instead. Deletion cannot be undone; the archive preserves a
-copy of the text.
+media appeared. Messages with attachments, stickers, polls, or interactive
+components are skipped by this text-only tutorial. The original-message link stops
+working after deletion; use the archived JSON instead. Deletion cannot be undone;
+the archive preserves a copy of the text.
 
 Discord does not provide an atomic version-check-and-delete operation, so an edit
 in the brief interval after the final check can still race with deletion. If the
@@ -208,7 +207,7 @@ experiment reuses the results without more calls. No GPU is needed.
 This example checks only new text in the selected channels. It skips bots,
 webhooks, DMs, threads, edits, and old messages. It does not inspect images,
 attachments, profiles, or linked pages. Messages containing attachments, stickers,
-polls, or interactive components can be reported but are never automatically deleted.
+polls, or interactive components are skipped without an API call, report, or deletion.
 Link previews are not copied; links in the message text are preserved. Each check
 sends the message text and question to Liquid in one paid API request.
 

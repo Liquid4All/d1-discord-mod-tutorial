@@ -15,7 +15,6 @@ from classifier import (
     DELETE_THRESHOLD,
     INSTRUCTIONS,
     MODEL,
-    REVIEW_THRESHOLD,
     LiquidAPIError,
     score_message,
 )
@@ -47,10 +46,8 @@ def has_uninspected_media(message: discord.Message) -> bool:
 
 class ModerationBot(discord.Client):
     def __init__(self, channel_ids: set[int], review_channel_id: int, api_key: str):
-        if not 0 <= REVIEW_THRESHOLD <= DELETE_THRESHOLD <= 1:
-            raise ValueError(
-                "Thresholds must satisfy 0 <= REVIEW_THRESHOLD <= DELETE_THRESHOLD <= 1."
-            )
+        if not 0 <= DELETE_THRESHOLD <= 1:
+            raise ValueError("DELETE_THRESHOLD must be between 0 and 1.")
         if not channel_ids or any(channel_id <= 0 for channel_id in channel_ids):
             raise ValueError("DISCORD_CHANNEL_IDS must contain positive channel IDs.")
         if review_channel_id <= 0 or review_channel_id in channel_ids:
@@ -126,6 +123,7 @@ class ModerationBot(discord.Client):
             or message.author.bot
             or message.webhook_id is not None
             or not message.content.strip()
+            or has_uninspected_media(message)
         ):
             return
         if self.busy.locked():
@@ -142,8 +140,8 @@ class ModerationBot(discord.Client):
                 probability = await asyncio.to_thread(
                     score_message, message.content, self.api_key
                 )
-                if probability < REVIEW_THRESHOLD:
-                    log.info("Message %s: no flag (%.3f)", message.id, probability)
+                if probability < DELETE_THRESHOLD:
+                    log.info("Message %s: no action (%.3f)", message.id, probability)
                     return
 
                 await self.archive_and_moderate(message, probability)
@@ -157,16 +155,7 @@ class ModerationBot(discord.Client):
                 )
 
     async def archive_and_moderate(self, message: discord.Message, probability: float):
-        should_delete = probability >= DELETE_THRESHOLD and not has_uninspected_media(
-            message
-        )
-        status = (
-            "Archived; deletion pending."
-            if should_delete
-            else "Review only; original left in place."
-        )
-        if has_uninspected_media(message):
-            status = "Review only; attachments, stickers, polls, or components were not inspected."
+        status = "Archived; deletion pending."
 
         embed = discord.Embed(
             title="Solicitation report",
@@ -204,10 +193,8 @@ class ModerationBot(discord.Client):
             "model": MODEL,
             "question": INSTRUCTIONS,
             "probability": probability,
-            "review_threshold": REVIEW_THRESHOLD,
             "delete_threshold": DELETE_THRESHOLD,
-            "planned_action": "delete" if should_delete else "review",
-            "uninspected_media": has_uninspected_media(message),
+            "planned_action": "delete",
         }
         data = json.dumps(record, ensure_ascii=False, indent=2).encode("utf-8")
         file = discord.File(BytesIO(data), filename=f"message-{message.id}.json")
@@ -218,8 +205,6 @@ class ModerationBot(discord.Client):
         finally:
             file.close()
         log.info("Message %s: archived (%.4f). %s", message.id, probability, status)
-        if not should_delete:
-            return
 
         # Only delete after the archive upload succeeds, and recheck the scored version.
         try:
@@ -229,7 +214,7 @@ class ModerationBot(discord.Client):
                 or current.edited_at != message.edited_at
                 or has_uninspected_media(current)
             ):
-                status = "Not deleted: message changed after classification. Review manually."
+                status = "Not deleted: message changed after classification."
             else:
                 await current.delete()
                 status = "Deleted. Full text and decision context are saved in the attached JSON."
