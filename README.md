@@ -56,17 +56,6 @@ Install the dependencies into the active environment:
 python -m pip install -r requirements.txt
 ```
 
-This includes JupyterLab and the Python kernel for running the notebook locally.
-To try the notebook, run:
-
-```sh
-python -m ipykernel install --sys-prefix --name d1-tutorial --display-name "Python (d1 tutorial)"
-python -m jupyter lab notebooks/d1_ultra_solicitation.ipynb
-```
-
-Select **Python (d1 tutorial)** as the notebook's kernel. You can also use the
-Colab link above to run it without a local installation.
-
 When you open a new terminal, return to this folder and run the activation command
 again. You only need to create the environment once. Run `deactivate` when finished.
 
