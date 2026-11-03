@@ -80,13 +80,9 @@ organization, then go to **Dashboard → API Keys** and create a key.
    **Send Messages**, **Embed Links**, and **Attach Files** permissions.
 6. Open the install link, choose **Add to server**, and select your test server.
 
-**Manage Messages** lets the bot delete other users' messages; Administrator is
-not needed. It will appear offline until you run it. If the bot is already
-installed, update its server role and channel permissions as described below.
-
 ## 3. Choose the channels to monitor
 
-Choose one or more text channels to monitor, such as `#general` and `#show-your-work`.
+Choose one or more text channels to monitor, such as `#general`.
 Create a **private** `#mod-review` text channel in the same server. Give the bot
 **View Channel**, **Read Message History**, and **Manage Messages** in each monitored
 channel. In `#mod-review`, give it **View Channel**, **Send Messages**, **Embed Links**,
@@ -105,11 +101,6 @@ DISCORD_REVIEW_CHANNEL_ID=your_private_mod_review_channel_id
 Replace the example numbers with your monitored channels' IDs, separated by commas.
 Use one numeric ID for the private review channel and keep it out of that list.
 All channels must be in the same server; the bot checks this at startup.
-
-Coming from the original bot? Reuse `DISCORD_LOG_CHANNEL_ID` as
-`DISCORD_REVIEW_CHANNEL_ID`. `DISCORD_GUILD_ID` is no longer needed because the
-channels identify the server. If you used this tutorial's earlier
-`DISCORD_CHANNEL_ID` setting, rename it to **`DISCORD_CHANNEL_IDS`** and add more IDs.
 
 ## 4. Understand the decision
 
