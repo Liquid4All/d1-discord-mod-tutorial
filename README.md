@@ -168,11 +168,28 @@ changing settings or code.
 
 
 
-## Scope and troubleshooting
+## Scope
 
-This example checks only new text in the selected channels. I
+This repo is a minimal starting point for building your own Discord moderation bot
+with `d1-ultra`. It demonstrates one policy: detecting unsolicited solicitation,
+then archiving and deleting eligible text messages that meet your chosen threshold.
 
+The bot checks new text messages in selected channels while the program is running.
+It skips messages with attachments and does not process message edits. It handles
+one message at a time, skips new messages while busy, and logs failed API requests
+without retrying them.
 
+Possible next steps include:
+
+- **Continuous monitoring:** deploy the bot on a cloud server and configure it to
+  restart automatically after a crash or reboot.
+- **Observability and evaluation:** store decisions, scores, errors, and moderator
+  feedback in a database. Use those records to build evaluation datasets and refine
+  the policy instructions and deletion threshold.
+- **Image moderation:** extend the bot to check attached images with `d1-ultra`,
+  which supports [image inputs](https://docs.liquid.ai/lfm/models/d1#image-inputs).
+- **Reliability and customization:** add a message queue and retries for temporary
+  API failures, or expand the bot with moderation policies tailored to your server.
 
 ## Support
 
