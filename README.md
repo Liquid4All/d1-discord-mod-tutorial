@@ -160,71 +160,19 @@ your own account, one at a time:
 | How do I run this model locally? | No action |
 | Watch out for “DM me to earn money” messages — it's a scam. | No action |
 
-Wait for each result in the terminal before posting the next message. These are
-desired results, not measured predictions; the model can make mistakes. A report
-includes an excerpt, author and message IDs, source channel, timestamp, and score.
-An attached JSON file preserves the **full text**, policy question, and threshold
-for post-mortem analysis. Its `planned_action` records the intention; the report's
-footer shows the actual outcome.
 
-For scores at or above `0.80`, the bot uploads that archive **before deleting**.
-If the upload fails, it leaves the original untouched. It then fetches the latest
-message and cancels deletion if the text or edit timestamp changed, or uninspected
-media appeared. Messages with attachments, stickers, polls, or interactive
-components are skipped by this text-only tutorial. The original-message link stops
-working after deletion; use the archived JSON instead. Deletion cannot be undone;
-the archive preserves a copy of the text.
 
-Discord does not provide an atomic version-check-and-delete operation, so an edit
-in the brief interval after the final check can still race with deletion. If the
-report footer remains “deletion pending,” check the terminal and original message;
-a pending report is not proof that deletion succeeded.
 
 Keep the program running while testing. Press **Ctrl+C** to stop. Restart after
 changing settings or code.
 
-## Try the API notebook
 
-Run [the notebook](notebooks/d1_ultra_solicitation.ipynb) in Colab, VS Code, or Jupyter.
-Colab provides its own runtime. To run locally, activate the `.venv` from step 1,
-then install Jupyter and register a kernel inside that environment:
-
-```sh
-python -m pip install jupyterlab ipykernel
-python -m ipykernel install --sys-prefix --name d1-tutorial --display-name "Python (d1 tutorial)"
-python -m jupyter lab notebooks/d1_ultra_solicitation.ipynb
-```
-
-Select **Python (d1 tutorial)** as the notebook's kernel. In VS Code, you can
-instead choose this project's `.venv` using **Select Kernel → Python Environments**.
-
-It needs only a Liquid API key, entered through a hidden prompt. It does not load
-`.env` automatically. A full run makes seven paid requests; the final threshold
-experiment reuses the results without more calls. No GPU is needed.
 
 ## Scope and troubleshooting
 
-This example checks only new text in the selected channels. It skips bots,
-webhooks, DMs, threads, edits, and old messages. It does not inspect images,
-attachments, profiles, or linked pages. Messages containing attachments, stickers,
-polls, or interactive components are skipped without an API call, report, or deletion.
-Link previews are not copied; links in the message text are preserved. Each check
-sends the message text and question to Liquid in one paid API request.
+This example checks only new text in the selected channels. I
 
-The bot handles one request at a time and logs a warning if another message
-arrives while it is busy. Failed requests are logged without retrying. Use
-quiet test channels for this tutorial.
 
-- **Online but silent:** check Message Content Intent, the channel IDs, and send
-  a new text message from a human account.
-- **Can't access, archive, or delete:** check the permissions in step 3, especially
-  **Manage Messages** on monitored channels and **Attach Files** in the private channel.
-- **Liquid HTTP 401 / 402 / 403 / 429:** check your API key / credit / model
-  access / rate limit, respectively.
-
-References: [Liquid API](https://docs.liquid.ai/lfm/models/d1),
-[Discord installation](https://docs.discord.com/developers/quick-start/getting-started),
-[message intents](https://discordpy.readthedocs.io/en/stable/intents.html#message-content).
 
 ## Support
 
