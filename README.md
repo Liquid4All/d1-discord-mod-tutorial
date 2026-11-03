@@ -1,3 +1,5 @@
+<img src="assets/liquid-logo.png" alt="Liquid AI" width="300">
+
 # Discord moderation bot with `d1-ultra`
 
 Build a bot that asks one question: **is this message unsolicited solicitation?**
@@ -5,7 +7,7 @@ Build a bot that asks one question: **is this message unsolicited solicitation?*
 It reads new messages in selected text channels of one server and detects sales,
 recruitment, or signup pitches. It saves a report in a private moderator channel,
 then deletes text messages with a solicitation score of at least `0.99`. Lower
-scores from `0.80` are reported for human review. It never bans anyone.
+scores from `0.80` are reported for human review. 
 
 ```text
 Message → d1-ultra → below 0.80: no action
@@ -235,3 +237,8 @@ quiet test channels for this tutorial.
 References: [Liquid API](https://docs.liquid.ai/lfm/models/d1),
 [Discord installation](https://docs.discord.com/developers/quick-start/getting-started),
 [message intents](https://discordpy.readthedocs.io/en/stable/intents.html#message-content).
+
+## Support
+
+- 📖 [Liquid AI Documentation](https://docs.liquid.ai/)
+- 💬 [Join our community on Discord](https://discord.com/invite/liquid-ai)
