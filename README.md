@@ -168,16 +168,11 @@ changing settings or code.
 
 
 
-## Scope
+## 6. Scope
 
 This repo is a minimal starting point for building your own Discord moderation bot
 with `d1-ultra`. It demonstrates one policy: detecting unsolicited solicitation,
 then archiving and deleting eligible text messages that meet your chosen threshold.
-
-The bot checks new text messages in selected channels while the program is running.
-It skips messages with attachments and does not process message edits. It handles
-one message at a time, skips new messages while busy, and logs failed API requests
-without retrying them.
 
 Possible next steps include:
 
