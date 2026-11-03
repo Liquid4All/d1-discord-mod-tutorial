@@ -1,4 +1,6 @@
-<img src="assets/liquid-logo.png" alt="Liquid AI" width="300">
+<p align="center">
+  <img src="assets/liquid-logo.png" alt="Liquid AI" width="200">
+</p>
 
 # Discord moderation bot with `d1-ultra`
 
